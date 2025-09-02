@@ -1,61 +1,4 @@
-def build_cql_query(year, title_kw, abstract_kw, applicant, inventor, ipc, cpc, country):
-    """Build CQL query string based on filters"""
-    query_parts = []
-    
-    # Publication date (always included)
-    query_parts.append(f'pd within "{year}0101 {year}1231"')
-    
-    # Title keywords
-    if title_kw:
-        # Handle multiple keywords with AND
-        keywords = [kw.strip() for kw in title_kw.split(',') if kw.strip()]
-        if len(keywords) == 1:
-            query_parts.append(f'ti="{keywords[0]}"')
-        else:
-            title_query = ' AND '.join([f'ti="{kw}"' for kw in keywords])
-            query_parts.append(f'({title_query})')
-    
-    # Abstract keywords
-    if abstract_kw:
-        keywords = [kw.strip() for kw in abstract_kw.split(',') if kw.strip()]
-        if len(keywords) == 1:
-            query_parts.append(f'ab="{keywords[0]}"')
-        else:
-            abstract_query = ' AND '.join([f'ab="{kw}"' for kw in keywords])
-            query_parts.append(f'({abstract_query})')
-    
-    # Applicant
-    if applicant:
-        applicants = [app.strip() for app in applicant.split(',') if app.strip()]
-        if len(applicants) == 1:
-            query_parts.append(f'pa="{applicants[0]}"')
-        else:
-            applicant_query = ' OR '.join([f'pa="{app}"' for app in applicants])
-            query_parts.append(f'({applicant_query})')
-    
-    # Inventor
-    if inventor:
-        inventors = [inv.strip() for inv in inventor.split(',') if inv.strip()]
-        if len(inventors) == 1:
-            query_parts.append(f'in="{inventors[0]}"')
-        else:
-            inventor_query = ' OR '.join([f'in="{inv}"' for inv in inventors])
-            query_parts.append(f'({inventor_query})')
-    
-    # IPC Classification
-    if ipc:
-        classifications = [ipc_code.strip() for ipc_code in ipc.split(',') if ipc_code.strip()]
-        if len(classifications) == 1:
-            query_parts.append(f'ic="{classifications[0]}"')
-        else:
-            ipc_query = ' OR '.join([f'ic="{cls}"' for cls in classifications])
-            query_parts.append(f'({ipc_query})')
-    
-    # CPC Classification
-    if cpc:
-        classifications = [cpc_code.strip() for cpc_code in cpc.split(',') if cpc_code.strip()]
-        if len(classifications) == 1:
-            query_parts.append(f'cpcimport streamlit as st
+import streamlit as st
 import requests
 from requests.auth import HTTPBasicAuth
 from lxml import etree
@@ -427,7 +370,75 @@ def extract_cpc_data(doc_num, headers, ns):
     
     return "", []
 
-def main_extraction(client_id, client_secret, year, max_records, batch_size, delay):
+def build_cql_query(year, title_kw, abstract_kw, applicant, inventor, ipc, cpc, country):
+    """Build CQL query string based on filters"""
+    query_parts = []
+    
+    # Publication date (always included)
+    query_parts.append(f'pd within "{year}0101 {year}1231"')
+    
+    # Title keywords
+    if title_kw:
+        # Handle multiple keywords with AND
+        keywords = [kw.strip() for kw in title_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ti="{keywords[0]}"')
+        else:
+            title_query = ' AND '.join([f'ti="{kw}"' for kw in keywords])
+            query_parts.append(f'({title_query})')
+    
+    # Abstract keywords
+    if abstract_kw:
+        keywords = [kw.strip() for kw in abstract_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ab="{keywords[0]}"')
+        else:
+            abstract_query = ' AND '.join([f'ab="{kw}"' for kw in keywords])
+            query_parts.append(f'({abstract_query})')
+    
+    # Applicant
+    if applicant:
+        applicants = [app.strip() for app in applicant.split(',') if app.strip()]
+        if len(applicants) == 1:
+            query_parts.append(f'pa="{applicants[0]}"')
+        else:
+            applicant_query = ' OR '.join([f'pa="{app}"' for app in applicants])
+            query_parts.append(f'({applicant_query})')
+    
+    # Inventor
+    if inventor:
+        inventors = [inv.strip() for inv in inventor.split(',') if inv.strip()]
+        if len(inventors) == 1:
+            query_parts.append(f'in="{inventors[0]}"')
+        else:
+            inventor_query = ' OR '.join([f'in="{inv}"' for inv in inventors])
+            query_parts.append(f'({inventor_query})')
+    
+    # IPC Classification
+    if ipc:
+        classifications = [ipc_code.strip() for ipc_code in ipc.split(',') if ipc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'ic="{classifications[0]}"')
+        else:
+            ipc_query = ' OR '.join([f'ic="{cls}"' for cls in classifications])
+            query_parts.append(f'({ipc_query})')
+    
+    # CPC Classification
+    if cpc:
+        classifications = [cpc_code.strip() for cpc_code in cpc.split(',') if cpc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'cpc="{classifications[0]}"')
+        else:
+            cpc_query = ' OR '.join([f'cpc="{cls}"' for cls in classifications])
+            query_parts.append(f'({cpc_query})')
+    
+    # Publication Country
+    if country:
+        query_parts.append(f'pc="{country}"')
+    
+    # Join all parts with AND
+    final_query = ' AND '.join(query_parts)
+    return final_query
     """Main extraction function"""
     
     # Progress tracking
@@ -455,7 +466,14 @@ def main_extraction(client_id, client_secret, year, max_records, batch_size, del
         
         # Search parameters
         search_url = "https://ops.epo.org/3.2/rest-services/published-data/search/biblio"
-        query = f'pd within "{year}0101 {year}1231"'
+        
+        # Build CQL query with filters
+        if filters:
+            query = build_cql_query(year, **filters)
+        else:
+            query = f'pd within "{year}0101 {year}1231"'
+        
+        st.info(f"🔍 Search Query: {query}")
         
         # Get total results
         status_text.text("🔍 Searching for patents...")
@@ -604,8 +622,19 @@ with col1:
         if not client_id or not client_secret:
             st.error("⚠️ Please provide both Client ID and Client Secret")
         else:
+            # Prepare filters
+            filters = {
+                'title_kw': filter_by_title,
+                'abstract_kw': filter_by_abstract,
+                'applicant': filter_by_applicant,
+                'inventor': filter_by_inventor,
+                'ipc': filter_by_ipc,
+                'cpc': filter_by_cpc,
+                'country': filter_by_country
+            }
+            
             with st.spinner("Extracting patent data..."):
-                df_result = main_extraction(client_id, client_secret, year, max_records, batch_size, delay)
+                df_result = main_extraction(client_id, client_secret, year, max_records, batch_size, delay, filters)
                 if df_result is not None:
                     st.session_state.df_result = df_result
                     st.session_state.extraction_complete = True
@@ -618,12 +647,38 @@ with col2:
     - Publication year
     - Number of records to extract
     
+    **Filters Available:**
+    - Title/Abstract keywords
+    - Applicant/Inventor names
+    - IPC/CPC classifications
+    - Publication country
+    
     **Features:**
+    - Advanced CQL query building
     - Extracts bibliographic data
     - Gets CPC classifications
     - Fetches register information
     - Exports to CSV
     """)
+    
+    # Filter examples
+    with st.expander("🔍 Filter Examples"):
+        st.write("""
+        **Title Keywords:** "artificial intelligence" or "machine learning, deep learning"
+        
+        **IPC Classifications:** 
+        - A01B (Agriculture)
+        - H04L (Communication)
+        - G06N (Computing arrangements)
+        
+        **CPC Classifications:**
+        - Y02E10/50 (Photovoltaic energy)
+        - G06N3/08 (Artificial neural networks)
+        
+        **Applicant:** "Google" or "Microsoft, Apple"
+        
+        **Multiple filters are combined with AND logic**
+        """)
 
 # Display results
 if st.session_state.extraction_complete and st.session_state.df_result is not None:
