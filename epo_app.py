@@ -1,15 +1,24 @@
 import streamlit as st
 
+import streamlit as st
+
 st.markdown(
     """
     <style>
-    body {
+    /* Page background */
+    .stApp {
+        background-color: #FFD1DC;
+    }
+
+    /* Sidebar background (if you have one) */
+    [data-testid="stSidebar"] {
         background-color: #FFD1DC;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 
 
