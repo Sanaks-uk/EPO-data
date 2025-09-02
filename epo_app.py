@@ -7,7 +7,7 @@ st.markdown(
     <style>
     /* Page background */
     .stApp {
-        background-color: #FFD1DC;
+        background-color: #ffeaf0;
     }
 
     /* Sidebar background (if you have one) */
