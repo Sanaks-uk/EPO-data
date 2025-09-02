@@ -1,4 +1,18 @@
 import streamlit as st
+
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #FFD1DC;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
 import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
