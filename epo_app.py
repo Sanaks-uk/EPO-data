@@ -1,4 +1,61 @@
-import streamlit as st
+def build_cql_query(year, title_kw, abstract_kw, applicant, inventor, ipc, cpc, country):
+    """Build CQL query string based on filters"""
+    query_parts = []
+    
+    # Publication date (always included)
+    query_parts.append(f'pd within "{year}0101 {year}1231"')
+    
+    # Title keywords
+    if title_kw:
+        # Handle multiple keywords with AND
+        keywords = [kw.strip() for kw in title_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ti="{keywords[0]}"')
+        else:
+            title_query = ' AND '.join([f'ti="{kw}"' for kw in keywords])
+            query_parts.append(f'({title_query})')
+    
+    # Abstract keywords
+    if abstract_kw:
+        keywords = [kw.strip() for kw in abstract_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ab="{keywords[0]}"')
+        else:
+            abstract_query = ' AND '.join([f'ab="{kw}"' for kw in keywords])
+            query_parts.append(f'({abstract_query})')
+    
+    # Applicant
+    if applicant:
+        applicants = [app.strip() for app in applicant.split(',') if app.strip()]
+        if len(applicants) == 1:
+            query_parts.append(f'pa="{applicants[0]}"')
+        else:
+            applicant_query = ' OR '.join([f'pa="{app}"' for app in applicants])
+            query_parts.append(f'({applicant_query})')
+    
+    # Inventor
+    if inventor:
+        inventors = [inv.strip() for inv in inventor.split(',') if inv.strip()]
+        if len(inventors) == 1:
+            query_parts.append(f'in="{inventors[0]}"')
+        else:
+            inventor_query = ' OR '.join([f'in="{inv}"' for inv in inventors])
+            query_parts.append(f'({inventor_query})')
+    
+    # IPC Classification
+    if ipc:
+        classifications = [ipc_code.strip() for ipc_code in ipc.split(',') if ipc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'ic="{classifications[0]}"')
+        else:
+            ipc_query = ' OR '.join([f'ic="{cls}"' for cls in classifications])
+            query_parts.append(f'({ipc_query})')
+    
+    # CPC Classification
+    if cpc:
+        classifications = [cpc_code.strip() for cpc_code in cpc.split(',') if cpc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'cpcimport streamlit as st
 import requests
 from requests.auth import HTTPBasicAuth
 from lxml import etree
@@ -50,6 +107,52 @@ max_records = st.sidebar.number_input(
     help="Maximum number of records to extract"
 )
 
+# Additional Filters
+st.sidebar.subheader("🔍 Search Filters")
+
+# Filter options
+filter_by_title = st.sidebar.text_input(
+    "Title Keywords",
+    placeholder="e.g., artificial intelligence",
+    help="Search patents containing specific words in the title"
+)
+
+filter_by_abstract = st.sidebar.text_input(
+    "Abstract Keywords", 
+    placeholder="e.g., battery technology",
+    help="Search patents containing specific words in the abstract"
+)
+
+filter_by_applicant = st.sidebar.text_input(
+    "Applicant Name",
+    placeholder="e.g., Google, Microsoft",
+    help="Filter by patent applicant company name"
+)
+
+filter_by_inventor = st.sidebar.text_input(
+    "Inventor Name",
+    placeholder="e.g., John Smith",
+    help="Filter by inventor name"
+)
+
+filter_by_ipc = st.sidebar.text_input(
+    "IPC Classification",
+    placeholder="e.g., A01B (Agriculture), H04L (Communication)",
+    help="International Patent Classification code"
+)
+
+filter_by_cpc = st.sidebar.text_input(
+    "CPC Classification",
+    placeholder="e.g., G06N (Artificial Intelligence)",
+    help="Cooperative Patent Classification code"
+)
+
+filter_by_country = st.sidebar.selectbox(
+    "Publication Country",
+    options=["", "EP", "US", "WO", "DE", "GB", "FR", "JP", "CN"],
+    help="Filter by patent publication country"
+)
+
 # Advanced settings
 with st.sidebar.expander("Advanced Settings"):
     batch_size = st.number_input("Batch Size", min_value=1, max_value=100, value=10)
@@ -91,6 +194,7 @@ def extract_from_text_node(element, xpath_str, namespaces):
         return ""
 
 def fetch_register_data(doc_num, headers):
+    st.write(f"  📋 Fetching register data for {doc_num}...")
     data = {
         "RepName": "", "RepCountry": "",
         "OpponentName": "", "OppositionFilingDate": "",
@@ -104,28 +208,43 @@ def fetch_register_data(doc_num, headers):
     for key, url in endpoints.items():
         try:
             time.sleep(2)
+            st.write(f"    → Trying {key} API...")
             resp = requests.get(url, headers=headers, timeout=15)
+            st.write(f"    → {key} API status: {resp.status_code}")
+            
             if resp.status_code == 200 and resp.content:
                 try:
                     j = resp.json()
-                except ValueError:
+                    st.write(f"    → {key} API returned JSON with keys: {list(j.keys())}")
+                except ValueError as ve:
+                    st.write(f"    → {key} API JSON parsing failed: {ve}")
                     continue
+                    
                 if key == "rep" and j.get("representatives"):
                     r = j["representatives"][0]
                     data["RepName"] = r.get("name", "")
                     data["RepCountry"] = r.get("countryCode", "")
+                    st.write(f"    ✓ Found representative: {data['RepName']}, {data['RepCountry']}")
                 elif key == "opp" and j.get("oppositions"):
                     o = j["oppositions"][0]
                     data["OpponentName"] = o.get("name", "")
                     data["OppositionFilingDate"] = o.get("dateFiled", "")
+                    st.write(f"    ✓ Found opposition: {data['OpponentName']}, {data['OppositionFilingDate']}")
                 elif key == "appeal" and j.get("appeals"):
                     a = j["appeals"][0]
                     data["AppealNr"] = a.get("number", "")
                     data["AppealResult"] = a.get("result", "")
                     data["AppealDate"] = a.get("resultDate", "")
+                    st.write(f"    ✓ Found appeal: {data['AppealNr']}, {data['AppealResult']}")
+                else:
+                    st.write(f"    → No {key} data found in response")
+            else:
+                st.write(f"    → {key} API failed: status {resp.status_code}, empty: {not resp.content}")
         except Exception as e:
-            st.warning(f"Register API failed for {doc_num} ({key}): {e}")
+            st.write(f"    ⚠ {key} API failed for {doc_num}: {e}")
             time.sleep(2)
+    
+    st.write(f"  → Register data summary: Rep={bool(data['RepName'])}, Opp={bool(data['OpponentName'])}, Appeal={bool(data['AppealNr'])}")
     return data
 
 def extract_biblio_data(doc_num, headers, ns):
@@ -141,15 +260,26 @@ def extract_biblio_data(doc_num, headers, ns):
             b_resp = requests.get(biblio_url, headers=headers, timeout=15)
             
             if b_resp.status_code == 404:
+                st.write(f"  → 404 for biblio URL {url_type + 1} for {doc_num}")
                 continue
                 
             if b_resp.status_code != 200:
+                st.write(f"  ⚠ Biblio API returned status {b_resp.status_code} for {doc_num}")
                 continue
                 
             if not b_resp.content:
+                st.write(f"  ⚠ Empty biblio response for {doc_num}")
                 continue
                 
             b_root = etree.fromstring(b_resp.content)
+            
+            # Debug: Show XML structure for first few documents
+            if url_type == 0:  # Only for first URL attempt
+                st.write(f"  📋 Biblio XML root tag: {b_root.tag}")
+                # Show first few elements
+                all_elements = b_root.xpath("//*[normalize-space(text())]")[:5]
+                for elem in all_elements:
+                    st.write(f"  📋 Element: {elem.tag} = '{elem.text[:50] if elem.text else 'None'}...'")
             
             # Try multiple XPath patterns for publication date
             pub_date_paths = [
@@ -166,6 +296,7 @@ def extract_biblio_data(doc_num, headers, ns):
             for path in pub_date_paths:
                 pub_date = safe_xpath(b_root, path, ns)
                 if pub_date:
+                    st.write(f"  ✓ Found pub_date with path: {path}")
                     break
             
             # Try multiple XPath patterns for applicant name
@@ -183,6 +314,7 @@ def extract_biblio_data(doc_num, headers, ns):
             for path in applicant_name_paths:
                 applicant_name = safe_xpath(b_root, path, ns)
                 if applicant_name:
+                    st.write(f"  ✓ Found applicant_name with path: {path}")
                     break
             
             # Try multiple XPath patterns for applicant country
@@ -200,11 +332,14 @@ def extract_biblio_data(doc_num, headers, ns):
             for path in applicant_country_paths:
                 applicant_country = safe_xpath(b_root, path, ns)
                 if applicant_country:
+                    st.write(f"  ✓ Found applicant_country with path: {path}")
                     break
             
+            st.write(f"  → {doc_num}: date='{pub_date}', name='{applicant_name}', country='{applicant_country}'")
             return pub_date, applicant_name, applicant_country
             
         except Exception as e:
+            st.write(f"  ⚠ Biblio extraction error for {doc_num} (attempt {url_type + 1}): {e}")
             continue
     
     return "", "", ""
@@ -218,19 +353,31 @@ def extract_cpc_data(doc_num, headers, ns):
     
     for url_type, cpc_url in enumerate(cpc_urls):
         try:
+            st.write(f"  🔍 Fetching CPC for {doc_num} (attempt {url_type + 1})...")
             time.sleep(1.5)
             cpc_resp = requests.get(cpc_url, headers=headers, timeout=15)
             
             if cpc_resp.status_code == 404:
+                st.write(f"  → 404 for CPC URL {url_type + 1} for {doc_num}")
                 continue
                 
             if cpc_resp.status_code != 200:
+                st.write(f"  ⚠ CPC API returned status {cpc_resp.status_code} for {doc_num}")
                 continue
                 
             if not cpc_resp.content:
+                st.write(f"  ⚠ Empty CPC response for {doc_num}")
                 continue
                 
             cpc_root = etree.fromstring(cpc_resp.content)
+            
+            # Debug: Show CPC XML structure for first few documents
+            if url_type == 0:
+                st.write(f"  🏷️ CPC XML root tag: {cpc_root.tag}")
+                # Show first few elements
+                all_elements = cpc_root.xpath("//*[normalize-space(text())]")[:3]
+                for elem in all_elements:
+                    st.write(f"  🏷️ CPC Element: {elem.tag} = '{elem.text[:30] if elem.text else 'None'}...'")
             
             # Try multiple CPC paths
             cpc_paths = [
@@ -246,6 +393,7 @@ def extract_cpc_data(doc_num, headers, ns):
             for cpc_path in cpc_paths:
                 cpcs = cpc_root.xpath(cpc_path, namespaces=ns)
                 if cpcs:
+                    st.write(f"  ✓ Found CPC classifications with path: {cpc_path} (count: {len(cpcs)})")
                     for c in cpcs:
                         symbol_paths = [
                             ".//ex:symbol/text()", 
@@ -260,6 +408,7 @@ def extract_cpc_data(doc_num, headers, ns):
                             if results:
                                 code = results[0].strip() if hasattr(results[0], 'strip') else str(results[0]).strip()
                                 if code:
+                                    st.write(f"  ✓ Found CPC code: {code} with path: {symbol_path}")
                                     break
                         
                         if code:
@@ -269,9 +418,11 @@ def extract_cpc_data(doc_num, headers, ns):
                                 cpc_main = code_clean[:4]
                     break
             
+            st.write(f"  → {doc_num}: CPC main='{cpc_main}', full={len(cpc_full)} classifications")
             return cpc_main, cpc_full
             
         except Exception as e:
+            st.write(f"  ⚠ CPC extraction error for {doc_num} (attempt {url_type + 1}): {e}")
             continue
     
     return "", []
