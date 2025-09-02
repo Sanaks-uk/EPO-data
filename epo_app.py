@@ -2,22 +2,62 @@ import streamlit as st
 
 import streamlit as st
 
+# Set page config
+st.set_page_config(page_title="EPO Patent Extractor", layout="centered")
+
+# Custom CSS for pink background and centering inputs
 st.markdown(
     """
     <style>
-    /* Page background */
+    /* Screen background color */
     .stApp {
-        background-color: #FFEAF0;
+        background-color: #FFE3EB;
     }
 
-    /* Sidebar background (if you have one) */
-    [data-testid="stSidebar"] {
-        background-color: #ffeaf0;
+    /* Center all inputs and texts inside the main container */
+    .centered-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    /* Style for the Run button */
+    div.stButton > button:first-child {
+        background-color: #4A4747
+        color: white;
+        font-weight: bold;
+        border-radius: 10px;
+        height: 50px;
+        width: 200px;
+    }
+
+    div.stButton > button:first-child:hover {
+        background-color: #4A4747;
+        color: white;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
+
+# Start a container with centering
+st.markdown('<div class="centered-container">', unsafe_allow_html=True)
+
+st.title("EPO Patent Extractor")
+st.write("Input your credentials and year below:")
+
+client_id = st.text_input("Client ID")
+client_secret = st.text_input("Client Secret", type="password")
+year = st.number_input("Year", min_value=1900, max_value=2100, value=2024)
+max_rows = st.number_input("Max Rows", min_value=1, value=50)
+
+if st.button("Run"):
+    st.success("You got it, now sit back and relax while I cook your CSV")
+    # Call your extraction function here
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 
 
