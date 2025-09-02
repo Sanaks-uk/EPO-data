@@ -1,71 +1,44 @@
 import streamlit as st
-import pandas as pd
 import requests
 from requests.auth import HTTPBasicAuth
 from lxml import etree
+import pandas as pd
 import time
 import math
 
-# ===== 1️⃣ Page config and CSS styling =====
-st.set_page_config(page_title="EPO Patent Data", layout="centered")
-st.markdown(
-    """
-    <style>
-    /* Page background */
-    .stApp {
-        background-color: #FFE6EE;
-    }
-    /* Center container */
-    .centered-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
-    /* Custom Run button color */
-    div.stButton > button:first-child {
-        background-color: #FF69B4;
-        color: white;
-        height: 3em;
-        width: 150px;
-        font-size: 16px;
-        border-radius: 10px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# ===== Streamlit Page Config =====
+st.set_page_config(page_title="EPO Patents Data Extractor", layout="centered")
 
+# ===== Title and Intro Text =====
+st.title("EPO Patents Data Extractor")
+st.markdown("Enter your credentials and parameters to fetch patent data.")
 
-# ===== 2. Title and description text =====
-st.markdown('<h1 class="centered-text">EPO Patent & Register Data Fetcher</h1>', unsafe_allow_html=True)
-st.markdown('<p class="centered-text">Enter your credentials, the year, and the maximum number of records you want to fetch.</p>', unsafe_allow_html=True)
+# ===== Centered Input Fields =====
+with st.container():
+    col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
+    with col2:
+        client_id = st.text_input("Client ID")
+        client_secret = st.text_input("Client Secret", type="password")
+        year = st.number_input("Year", min_value=1978, max_value=2100, value=2024)
+        max_records = st.number_input("Max records", min_value=1, max_value=10000, value=50)
 
+# ===== Run Button =====
+run_button = st.button("Run")
 
-
-# Input fields
-st.markdown('<div class="centered">', unsafe_allow_html=True)
-client_id = st.text_input("Client ID")
-client_secret = st.text_input("Client Secret", type="password")
-year = st.number_input("Year", min_value=1978, max_value=2100, value=2024)
-max_rows = st.number_input("Max rows to fetch", min_value=10, max_value=1000, value=50)
-st.markdown('</div>', unsafe_allow_html=True)
-
-run = st.button("Run")
-
-# ----------------- Helper Functions -----------------
-def safe_xpath(root, xpath_str, namespaces, return_all=False):
+# ===== Helper Functions =====
+def safe_xpath(root, xpath_str, namespaces):
     try:
         res = root.xpath(xpath_str, namespaces=namespaces)
-        if return_all:
-            return res
         return res[0].strip() if res and hasattr(res[0], 'strip') else (res[0] if res else "")
     except:
-        return [] if return_all else ""
+        return ""
 
 def fetch_register_data(doc_num, headers):
-    data = {"RepName": "", "RepCountry": "", "OpponentName": "", "OppositionFilingDate": "",
-            "AppealNr": "", "AppealResult": "", "AppealDate": ""}
+    data = {
+        "RepName": "", "RepCountry": "",
+        "OpponentName": "", "OppositionFilingDate": "",
+        "AppealNr": "", "AppealResult": "", "AppealDate": ""
+    }
     endpoints = {
         "rep": f"https://register.epo.org/api/publication/epodoc/{doc_num}/representatives",
         "opp": f"https://register.epo.org/api/publication/epodoc/{doc_num}/oppositions",
@@ -94,7 +67,8 @@ def fetch_register_data(doc_num, headers):
             continue
     return data
 
-def extract_biblio_data(doc_num, headers, ns):
+def extract_biblio_data(doc_num, headers):
+    ns = {"ops":"http://ops.epo.org","ex":"http://www.epo.org/exchange"}
     urls = [
         f"https://ops.epo.org/3.2/rest-services/published-data/publication/epodoc/{doc_num}/biblio",
         f"https://ops.epo.org/3.2/rest-services/published-data/publication/docdb/{doc_num}/biblio"
@@ -103,18 +77,18 @@ def extract_biblio_data(doc_num, headers, ns):
         try:
             time.sleep(1)
             resp = requests.get(url, headers=headers, timeout=15)
-            if resp.status_code != 200 or not resp.content:
-                continue
-            root = etree.fromstring(resp.content)
-            pub_date = safe_xpath(root, ".//ex:publication-reference/ex:document-id/ex:date/text()", ns)
-            applicant_name = safe_xpath(root, ".//ex:applicant-name/ex:name/text()", ns)
-            applicant_country = safe_xpath(root, ".//ex:applicant/ex:addressbook/ex:address/ex:country/text()", ns)
-            return pub_date, applicant_name, applicant_country
+            if resp.status_code == 200 and resp.content:
+                root = etree.fromstring(resp.content)
+                pub_date = safe_xpath(root, "//ex:date/text()", ns)
+                applicant_name = safe_xpath(root, "//ex:applicant-name/ex:name/text()", ns)
+                applicant_country = safe_xpath(root, "//ex:residence/ex:country/text()", ns)
+                return pub_date, applicant_name, applicant_country
         except:
             continue
     return "", "", ""
 
-def extract_cpc_data(doc_num, headers, ns):
+def extract_cpc_data(doc_num, headers):
+    ns = {"ops":"http://ops.epo.org","ex":"http://www.epo.org/exchange"}
     urls = [
         f"https://ops.epo.org/3.2/rest-services/published-data/publication/epodoc/{doc_num}/classifications",
         f"https://ops.epo.org/3.2/rest-services/published-data/publication/docdb/{doc_num}/classifications"
@@ -123,89 +97,80 @@ def extract_cpc_data(doc_num, headers, ns):
         try:
             time.sleep(1)
             resp = requests.get(url, headers=headers, timeout=15)
-            if resp.status_code != 200 or not resp.content:
-                continue
-            root = etree.fromstring(resp.content)
-            cpcs = root.xpath("//ex:classification-cpc", namespaces=ns)
-            cpc_main = ""
-            cpc_full = []
-            for c in cpcs:
-                code = safe_xpath(c, ".//ex:symbol/text()", ns)
-                if code:
-                    code_clean = str(code).replace(" ", "").replace("/", "")
-                    cpc_full.append(code_clean)
-                    if not cpc_main and len(code_clean) >= 4:
-                        cpc_main = code_clean[:4]
-            return cpc_main, ";".join(cpc_full)
+            if resp.status_code == 200 and resp.content:
+                root = etree.fromstring(resp.content)
+                cpcs = root.xpath("//ex:classification-cpc/ex:symbol/text()", namespaces=ns)
+                cpcs_clean = [c.replace(" ", "").replace("/", "") for c in cpcs]
+                cpc_main = cpcs_clean[0][:4] if cpcs_clean else ""
+                return cpc_main, ";".join(cpcs_clean)
         except:
             continue
     return "", ""
 
-# ----------------- Main Logic -----------------
-if run:
-    st.success("You got it, now sit back and relax while I cook your CSV!")
-    ns = {"ex": "http://www.epo.org/exchange"}
+# ===== Main Logic =====
+if run_button:
+    st.info("You got it, now sit back and relax while I cook your CSV 🍳")
+    
+    # ===== 1. Get OAuth token =====
     auth_url = "https://ops.epo.org/3.2/auth/accesstoken"
-
-    # Get OAuth token
     resp = requests.post(auth_url, auth=HTTPBasicAuth(client_id, client_secret),
                          data={"grant_type": "client_credentials"})
-    resp.raise_for_status()
-    access_token = resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    # Search query
-    query = f'pd within "{year}0101 {year}1231"'
-    search_url = "https://ops.epo.org/3.2/rest-services/published-data/search/biblio"
-    batch_size = 10
-
-    # Get first batch to determine total results
-    params = {"q": query, "Range": f"1-{batch_size}"}
-    search_resp = requests.get(search_url, headers=headers, params=params)
-    search_resp.raise_for_status()
-    search_root = etree.fromstring(search_resp.content)
-    total_results = int(search_root.xpath("string(//ops:biblio-search/@total-result-count)",
-                                         namespaces={"ops": "http://ops.epo.org"}))
-    total_to_fetch = min(total_results, max_rows)
-    total_batches = math.ceil(total_to_fetch / batch_size)
-
-    all_records = []
-
-    for batch_num in range(total_batches):
-        start = batch_num * batch_size + 1
-        end = min(start + batch_size - 1, total_to_fetch)
-        params = {"q": query, "Range": f"{start}-{end}"}
-        batch_resp = requests.get(search_url, headers=headers, params=params)
-        if batch_resp.status_code != 200:
-            continue
-        batch_root = etree.fromstring(batch_resp.content)
-        documents = batch_root.xpath("//ex:exchange-document", namespaces=ns)
-
-        for doc in documents:
-            doc_num = doc.attrib.get("doc-number") or ""
-            if not doc_num:
-                continue
-
-            pub_date, applicant_name, applicant_country = extract_biblio_data(doc_num, headers, ns)
-            cpc_main, cpc_full = extract_cpc_data(doc_num, headers, ns)
-            reg_data = fetch_register_data(doc_num, headers)
-
-            record = {
-                "DocNumber": doc_num,
-                "Publn_date": pub_date,
-                "ApplicantFiledName": applicant_name,
-                "ApplicantCountry": applicant_country,
-                "CPCMain": cpc_main,
-                "CPCFull": cpc_full,
-                **reg_data
-            }
-            all_records.append(record)
-
-    if all_records:
-        df = pd.DataFrame(all_records)
-        st.dataframe(df)
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "epo_patents.csv", "text/csv")
+    if resp.status_code != 200:
+        st.error("Authentication failed. Check credentials.")
     else:
-        st.warning("No records found for this year or credentials.")
-
+        access_token = resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {access_token}"}
+        
+        # ===== 2. Search API =====
+        search_url = "https://ops.epo.org/3.2/rest-services/published-data/search/biblio"
+        query = f'pd within "{year}0101 {year}1231"'
+        batch_size = 10
+        params = {"q": query, "Range": f"1-{batch_size}"}
+        search_resp = requests.get(search_url, headers=headers, params=params)
+        if search_resp.status_code != 200:
+            st.error("Search failed.")
+        else:
+            search_root = etree.fromstring(search_resp.content)
+            total_results = int(search_root.xpath("string(//ops:biblio-search/@total-result-count)", namespaces={"ops":"http://ops.epo.org"}))
+            st.success(f"Total patents found: {total_results}")
+            
+            all_records = []
+            total_to_fetch = min(total_results, max_records)
+            
+            documents = search_root.xpath("//ex:exchange-document", namespaces={"ex":"http://www.epo.org/exchange"})
+            
+            for doc in documents[:total_to_fetch]:
+                doc_num = doc.attrib.get("doc-number", "")
+                if not doc_num:
+                    continue
+                
+                # Extract Biblio
+                pub_date, applicant_name, applicant_country = extract_biblio_data(doc_num, headers)
+                
+                # Extract CPC
+                cpc_main, cpc_full = extract_cpc_data(doc_num, headers)
+                
+                # Extract Register
+                reg_data = fetch_register_data(doc_num, headers)
+                
+                record = {
+                    "DocNumber": doc_num,
+                    "Publn_date": pub_date,
+                    "ApplicantFiledName": applicant_name,
+                    "ApplicantCountry": applicant_country,
+                    "CPCMain": cpc_main,
+                    "CPCFull": cpc_full,
+                    **reg_data
+                }
+                
+                all_records.append(record)
+            
+            # ===== Save CSV and display summary =====
+            if all_records:
+                df = pd.DataFrame(all_records)
+                filename = f"epo_patents_{year}.csv"
+                df.to_csv(filename, index=False)
+                st.success(f"CSV saved: {filename}")
+                st.dataframe(df.head(5))
+            else:
+                st.warning("No records fetched.")
