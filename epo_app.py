@@ -530,18 +530,7 @@ if st.session_state.extraction_complete and st.session_state.df_result is not No
         type="primary"
     )
     
-    # Excel download
-    excel_buffer = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='EPO Patents', index=False)
-    excel_data = excel_buffer.getvalue()
-    
-    st.download_button(
-        label="📥 Download as Excel",
-        data=excel_data,
-        file_name=filename.replace('.csv', '.xlsx'),
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+
     
     # Show full dataset option
     if st.checkbox("Show full dataset"):
