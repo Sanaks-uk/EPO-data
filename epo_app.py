@@ -1,4 +1,4 @@
-import streamlit as st
+Fimport streamlit as st
 
 import streamlit as st
 
@@ -7,7 +7,7 @@ st.markdown(
     <style>
     /* Page background */
     .stApp {
-        background-color: #ffeaf0;
+        background-color: #FFEAF0;
     }
 
     /* Sidebar background (if you have one) */
