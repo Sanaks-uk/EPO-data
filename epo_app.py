@@ -36,6 +36,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+# ===== 2. Title and description text =====
+st.markdown('<h1 class="centered-text">EPO Patent & Register Data Fetcher</h1>', unsafe_allow_html=True)
+st.markdown('<p class="centered-text">Enter your credentials, the year, and the maximum number of records you want to fetch. Sit back while your CSV is prepared!</p>', unsafe_allow_html=True)
+
+
+
 # Input fields
 st.markdown('<div class="centered">', unsafe_allow_html=True)
 client_id = st.text_input("Client ID")
