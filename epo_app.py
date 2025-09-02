@@ -6,19 +6,35 @@ from lxml import etree
 import time
 import math
 
-# ----------------- Streamlit UI -----------------
-st.set_page_config(page_title="EPO Patents Fetcher", layout="wide")
-
+# ===== 1️⃣ Page config and CSS styling =====
+st.set_page_config(page_title="EPO Patent Data", layout="centered")
 st.markdown(
     """
     <style>
-    .stApp {background-color: #FFE6EE;}
-    .centered {text-align: center;}
+    /* Page background */
+    .stApp {
+        background-color: #FFE6EE;
+    }
+    /* Center container */
+    .centered-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Custom Run button color */
+    div.stButton > button:first-child {
+        background-color: #FF69B4;
+        color: white;
+        height: 3em;
+        width: 150px;
+        font-size: 16px;
+        border-radius: 10px;
+    }
     </style>
-    """, unsafe_allow_html=True
+    """,
+    unsafe_allow_html=True
 )
-
-st.markdown('<div class="centered"><h1>EPO Patents Fetcher</h1></div>', unsafe_allow_html=True)
 
 # Input fields
 st.markdown('<div class="centered">', unsafe_allow_html=True)
