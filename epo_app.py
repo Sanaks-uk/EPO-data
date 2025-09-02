@@ -136,6 +136,76 @@ def extract_from_text_node(element, xpath_str, namespaces):
         st.error(f"Text extraction error: {e}")
         return ""
 
+def build_cql_query(year, title_kw, abstract_kw, applicant, inventor, ipc, cpc, country):
+    """Build CQL query string based on filters"""
+    query_parts = []
+    
+    # Publication date (always included)
+    query_parts.append(f'pd within "{year}0101 {year}1231"')
+    
+    # Title keywords
+    if title_kw:
+        # Handle multiple keywords with AND
+        keywords = [kw.strip() for kw in title_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ti="{keywords[0]}"')
+        else:
+            title_query = ' AND '.join([f'ti="{kw}"' for kw in keywords])
+            query_parts.append(f'({title_query})')
+    
+    # Abstract keywords
+    if abstract_kw:
+        keywords = [kw.strip() for kw in abstract_kw.split(',') if kw.strip()]
+        if len(keywords) == 1:
+            query_parts.append(f'ab="{keywords[0]}"')
+        else:
+            abstract_query = ' AND '.join([f'ab="{kw}"' for kw in keywords])
+            query_parts.append(f'({abstract_query})')
+    
+    # Applicant
+    if applicant:
+        applicants = [app.strip() for app in applicant.split(',') if app.strip()]
+        if len(applicants) == 1:
+            query_parts.append(f'pa="{applicants[0]}"')
+        else:
+            applicant_query = ' OR '.join([f'pa="{app}"' for app in applicants])
+            query_parts.append(f'({applicant_query})')
+    
+    # Inventor
+    if inventor:
+        inventors = [inv.strip() for inv in inventor.split(',') if inv.strip()]
+        if len(inventors) == 1:
+            query_parts.append(f'in="{inventors[0]}"')
+        else:
+            inventor_query = ' OR '.join([f'in="{inv}"' for inv in inventors])
+            query_parts.append(f'({inventor_query})')
+    
+    # IPC Classification
+    if ipc:
+        classifications = [ipc_code.strip() for ipc_code in ipc.split(',') if ipc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'ic="{classifications[0]}"')
+        else:
+            ipc_query = ' OR '.join([f'ic="{cls}"' for cls in classifications])
+            query_parts.append(f'({ipc_query})')
+    
+    # CPC Classification
+    if cpc:
+        classifications = [cpc_code.strip() for cpc_code in cpc.split(',') if cpc_code.strip()]
+        if len(classifications) == 1:
+            query_parts.append(f'cpc="{classifications[0]}"')
+        else:
+            cpc_query = ' OR '.join([f'cpc="{cls}"' for cls in classifications])
+            query_parts.append(f'({cpc_query})')
+    
+    # Publication Country
+    if country:
+        query_parts.append(f'pc="{country}"')
+    
+    # Join all parts with AND
+    final_query = ' AND '.join(query_parts)
+    return final_query
+
 def fetch_register_data(doc_num, headers):
     st.write(f"  📋 Fetching register data for {doc_num}...")
     data = {
